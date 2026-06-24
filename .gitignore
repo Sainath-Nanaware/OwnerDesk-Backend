@@ -1,0 +1,70 @@
+# Node modules
+node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Environment files
+.env
+.env.*.local
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Build output
+dist/
+build/
+coverage/
+
+# IDE/editor settings
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Optional npm cache folder
+.npm/
+
+# Optional REPL history
+.node_repl_history
+
+# Debug files
+debug.log
+error.log
+
+# Parcel cache
+.cache/
+
+# Next.js cache
+.next/
+
+# TypeScript
+*.tsbuildinfo
+
+# eslint cache
+.eslintcache
+
+# Optional Docker files
+docker-compose.override.yml
+
+# Mac/Linux-specific
+*.swp
+
+# Windows-specific
+*.exe
+*.dll
+
+# Test coverage
+coverage/

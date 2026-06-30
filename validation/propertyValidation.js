@@ -39,4 +39,10 @@ const newPropertyValidationSchema = Joi.object({
     }),
 });
 
-module.exports={newPropertyValidationSchema}
+// Relaxed schema for UPDATE (all fields optional)
+const propertyUpdateSchema = newPropertyValidationSchema.fork(
+  ["ownerId", "propertyName", "address", "city", "state", "pincode"],
+  (field) => field.optional()
+);
+
+module.exports={newPropertyValidationSchema, propertyUpdateSchema}

@@ -4,15 +4,22 @@ const router = express.Router();
 const auth=require("../middlewares/authMiddleware")
 
 //Controller 
-const { addNewProperty } = require("../controllers/propertyController");
+const {
+  addNewProperty,
+  updateProperty,
+} = require("../controllers/propertyController");
 
 //validation middleware
 const validate = require("../middlewares/schemaValitation");
 
 //schema for validation
-const {newPropertyValidationSchema}= require("../validation/propertyValidation")
+const {
+  newPropertyValidationSchema,
+  propertyUpdateSchema,
+} = require("../validation/propertyValidation");
 
 
 router.post("/add", auth, validate(newPropertyValidationSchema), addNewProperty);
+router.patch("/:id",auth, validate(propertyUpdateSchema),updateProperty);
 
 module.exports=router

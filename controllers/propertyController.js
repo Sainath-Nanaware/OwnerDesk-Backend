@@ -26,3 +26,41 @@ exports.addNewProperty=async (req,resp)=>{
     }
 
 }
+
+
+exports.updateProperty = async (req, resp) => {
+  logger.info(`Updating property with ID: ${req.params.id}`);
+  console.log(req.params.id);
+
+//   // Joi validation (optional fields allowed)
+//   const { error } = propertyUpdateSchema.validate(req.body);
+//   if (error) {
+//     return errorResponse(res, error.details[0].message, 400, null);
+//   }
+
+  try {
+    // Check property existence
+    const property = await Property.findById(req.params.id);
+    if (!property) {
+      logger.warn(`Property with ID ${req.params.id} not found`);
+      return errorResponse(resp, "Property not found", 404, null);
+    }
+
+    const updatedProperty = await Property.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true, runValidators: true }
+    );
+
+    logger.info("Property updated successfully!");
+    return successResponse(
+      resp,
+      updatedProperty,
+      "Property updated successfully!",
+      200
+    );
+  } catch (error) {
+    logger.error(`Internal server error during update: ${error.message}`);
+    return errorResponse(resp, "Internal server error", 500, error);
+  }
+};

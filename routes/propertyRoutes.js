@@ -7,6 +7,7 @@ const auth=require("../middlewares/authMiddleware")
 const {
   addNewProperty,
   updateProperty,
+  getAllProperty,
 } = require("../controllers/propertyController");
 
 //validation middleware
@@ -21,5 +22,6 @@ const {
 
 router.post("/add", auth, validate(newPropertyValidationSchema), addNewProperty);
 router.patch("/:id",auth, validate(propertyUpdateSchema),updateProperty);
+router.get("/owner/:ownerID",auth,getAllProperty);
 
 module.exports=router

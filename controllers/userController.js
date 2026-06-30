@@ -2,9 +2,6 @@ const User=require("../models/userModel")
 const bcrypt = require("bcrypt");
 const logger = require("../logs/logger");
 const jwt = require("jsonwebtoken");
-
-
-
 const { successResponse, errorResponse } = require("../utils/responseHandler");
 
 exports.registration = async (req, resp) => {
@@ -64,7 +61,7 @@ exports.login = async (req, resp) => {
     logger.info("user login succesfully");
     successResponse(
       resp,
-      { token, userName: userExist.username, },
+      { token, userName: userExist.username,userID: userExist._id },
       "User login succesfully",
       200
     );

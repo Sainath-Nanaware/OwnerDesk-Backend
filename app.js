@@ -18,7 +18,9 @@ app.use(express.json());
 const userRoutes=require('./routes/userRoutes')
 app.use("/user",userRoutes);
 
-
+//Property route
+const propertyRoutes=require("./routes/propertyRoutes")
+app.use("/property",propertyRoutes)
 
 
 app.get("/", (req, res) => {
@@ -31,4 +33,5 @@ const PORT = process.env.PORT || 6000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 

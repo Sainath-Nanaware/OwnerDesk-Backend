@@ -8,6 +8,7 @@ const {
   addNewProperty,
   updateProperty,
   getAllProperty,
+  searchPropertyByCity,
 } = require("../controllers/propertyController");
 
 //validation middleware
@@ -23,5 +24,6 @@ const {
 router.post("/add", auth, validate(newPropertyValidationSchema), addNewProperty);
 router.patch("/:id",auth, validate(propertyUpdateSchema),updateProperty);
 router.get("/owner/:ownerID",auth,getAllProperty);
+router.get("/owner/:ownerID/search",auth,searchPropertyByCity);
 
 module.exports=router

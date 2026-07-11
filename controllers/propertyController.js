@@ -133,3 +133,67 @@ exports.getAllProperty = async (req, resp) => {
     return errorResponse(resp, "Internal server error", 500, error);
   }
 };
+
+exports.searchPropertyByCity = async (req, resp) => {
+  logger.info(
+    `Searching properties for owner ${req.params.ownerID} in city ${req.query.city}`
+  );
+
+  try {
+    const { ownerID } = req.params;
+    const { city } = req.query;
+
+    // Pagination
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Check owner exists
+    const ownerExists = await User.findById(ownerID);
+
+    if (!ownerExists) {
+      logger.warn(`Owner ID ${ownerID} not found`);
+
+      return errorResponse(resp, "Owner does not exist", 404, null);
+    }
+
+    // Build filter
+    const filter = {
+      ownerId: ownerID,
+    };
+
+    if (city) {
+      filter.city = city.toLowerCase().trim();
+    }
+
+    // Count total records
+    const totalRecords = await Property.countDocuments(filter);
+
+    // Fetch paginated data
+    const properties = await Property.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    return successResponse(
+      resp,
+      {
+        properties,
+        pagination: {
+          totalRecords,
+          currentPage: page,
+          totalPages: Math.ceil(totalRecords / limit),
+          pageSize: limit,
+          hasNextPage: page * limit < totalRecords,
+          hasPreviousPage: page > 1,
+        },
+      },
+      "Properties fetched successfully.",
+      200
+    );
+  } catch (error) {
+    logger.error(error.message);
+
+    return errorResponse(resp, "Internal server error", 500, error);
+  }
+};

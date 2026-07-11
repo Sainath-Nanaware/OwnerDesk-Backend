@@ -28,6 +28,7 @@ exports.addNewProperty=async (req,resp)=>{
 }
 
 
+// always send totalRooms and occupiedRooms count when we update any field of boath of them otherwise we get ref() error for joy schema
 exports.updateProperty = async (req, resp) => {
   logger.info(`Updating property with ID: ${req.params.id}`);
   console.log(req.params.id);
@@ -71,10 +72,12 @@ exports.getAllProperty = async (req, resp) => {
   );
 
   try {
-    // Step 1: Check if owner exists
+    // Check if owner exists
     const ownerExists = await User.findById(req.params.ownerID);
+
     if (!ownerExists) {
       logger.warn(`Owner ID ${req.params.ownerID} does not exist`);
+
       return errorResponse(
         resp,
         "Owner ID does not exist in the database",
@@ -83,13 +86,46 @@ exports.getAllProperty = async (req, resp) => {
       );
     }
 
-    // Step 2: Fetch all properties for this owner
-    const allProperties = await Property.find({ ownerId: req.params.ownerID });
+    // Pagination
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    const skip = (page - 1) * limit;
+
+    // Total records
+    const totalProperties = await Property.countDocuments({
+      ownerId: req.params.ownerID,
+    });
+
+    // Fetch paginated data
+    const allProperties = await Property.find({
+      ownerId: req.params.ownerID,
+    })
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 });
 
     logger.info(
       `Found ${allProperties.length} properties for owner ${req.params.ownerID}`
     );
-    return successResponse(resp, allProperties, "All properties of owner", 200);
+
+    return successResponse(
+      resp,
+      {
+        properties: allProperties,
+
+        pagination: {
+          totalRecords: totalProperties,
+          currentPage: page,
+          totalPages: Math.ceil(totalProperties / limit),
+          pageSize: limit,
+          hasNextPage: page * limit < totalProperties,
+          hasPreviousPage: page > 1,
+        },
+      },
+      "All properties fetched successfully.",
+      200
+    );
   } catch (error) {
     logger.error(
       `Internal server error during get all properties: ${error.message}`

@@ -15,6 +15,8 @@ app.use(
     credentials: true,
   }))
 app.use(express.json());
+// //for form data body 
+// app.use(express.urlencoded({ extended: true }));
 
 
 //Routes:

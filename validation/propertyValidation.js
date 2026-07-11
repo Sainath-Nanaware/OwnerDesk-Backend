@@ -37,11 +37,38 @@ const newPropertyValidationSchema = Joi.object({
         "Pincode must be a valid 6-digit Indian postal code",
       "any.required": "Pincode is required",
     }),
+  totalRooms: Joi.number().integer().min(1).required().messages({
+    "number.base": "Total rooms must be a number.",
+    "number.integer": "Total rooms must be an integer.",
+    "number.min": "Total rooms must be at least 1.",
+    "any.required": "Total rooms is required.",
+  }),
+
+  occupiedRooms: Joi.number()
+    .integer()
+    .min(0)
+    .max(Joi.ref("totalRooms"))
+    .default(0)
+    .messages({
+      "number.base": "Occupied rooms must be a number.",
+      "number.integer": "Occupied rooms must be an integer.",
+      "number.min": "Occupied rooms cannot be negative.",
+      "number.max": "Occupied rooms cannot be greater than total rooms.",
+    }),
 });
 
 // Relaxed schema for UPDATE (all fields optional)
 const propertyUpdateSchema = newPropertyValidationSchema.fork(
-  ["ownerId", "propertyName", "address", "city", "state", "pincode"],
+  [
+    "ownerId",
+    "propertyName",
+    "address",
+    "city",
+    "state",
+    "pincode",
+    "totalRooms",
+    "occupiedRooms",
+  ],
   (field) => field.optional()
 );
 

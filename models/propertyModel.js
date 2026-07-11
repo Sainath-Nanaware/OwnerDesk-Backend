@@ -21,11 +21,13 @@ const propertySchema = new mongoose.Schema(
       type: String,
       required: [true, "Please provide city"],
       trim: true,
+      lowercase: true,
     },
     state: {
       type: String,
       required: [true, "Please provide state"],
       trim: true,
+      lowercase: true,
     },
     pincode: {
       type: String,
@@ -37,6 +39,17 @@ const propertySchema = new mongoose.Schema(
         },
         message: (props) => `${props.value} is not a valid Indian pincode!`,
       },
+    },
+    totalRooms: {
+      type: Number,
+      required: [true, "Please provide total rooms"],
+      min: [1, "Total rooms must be at least 1"],
+    },
+
+    occupiedRooms: {
+      type: Number,
+      default: 0,
+      min: [0, "Occupied rooms cannot be negative"],
     },
   },
   {

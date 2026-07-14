@@ -47,6 +47,7 @@ exports.login = async (req, resp) => {
     }
     const validPassword = await bcrypt.compare(password, userExist.password);
     if (!validPassword) {
+      logger.warn("invalid credentials")
       return errorResponse(resp, "invalid credential", 401);
     }
     // console.log(validPassword);

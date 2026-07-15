@@ -7,6 +7,7 @@ const auth = require("../middlewares/authMiddleware");
 const {
  addNewRoom,
  getAllRoomsByProperty,
+ searchRoomsByProperty,
 } = require("../controllers/roomController");
 
 //validation middleware
@@ -27,5 +28,20 @@ router.get(
   auth,
   getAllRoomsByProperty
 );
+/*call example:
+Get all rooms
+GET /api/rooms/property/6890abcd/rooms
+Search by room number
+GET /api/rooms/property/6890abcd/rooms?roomNumber=101
+Search vacant rooms
+GET /api/rooms/property/6890abcd/rooms?isOccupied=false
+Search by room type
+GET /api/rooms/property/6890abcd/rooms?roomType=1 BHK
+Search by floor
+GET /api/rooms/property/6890abcd/rooms?floor=2
+Combined filters
+GET /api/rooms/property/6890abcd/rooms?roomType=Single Room&isOccupied=true&page=1&limit=10
+// call api example : GET /api/rooms/property/689ab1234567890abcdef123/rooms?roomNumber=101&page=2&limit=10 */
+router.get("/property/:propertyId/rooms", auth, searchRoomsByProperty);
 
 module.exports = router;

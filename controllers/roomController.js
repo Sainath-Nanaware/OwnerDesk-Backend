@@ -200,3 +200,141 @@ exports.getAllRoomsByProperty = async (req, resp) => {
     return errorResponse(resp, "Internal server error.", 500, error);
   }
 }
+
+/*following search API is perform search opration on multiple factors if we change that fators boolen values or enum values 
+we need update api logic also 
+*/
+exports.searchRoomsByProperty = async (req, resp) => {
+  logger.info("Searching rooms within property...");
+
+  try {
+    // =====================================================
+    // STEP 1 : Get Logged-in Owner & Property ID
+    // =====================================================
+
+    // const ownerId = req.user.id;
+    const { propertyId } = req.params;
+
+    // =====================================================
+    // STEP 2 : Validate Property ID
+    // =====================================================
+
+    if (!mongoose.Types.ObjectId.isValid(propertyId)) {
+      logger.warn(`Invalid Property ID : ${propertyId}`);
+
+      return errorResponse(resp, "Invalid Property ID.", 400, null);
+    }
+
+    // =====================================================
+    // STEP 3 : Verify Property Exists and Belongs to Owner
+    // =====================================================
+
+    const property = await Property.findOne({
+      _id: propertyId
+      // ownerId,
+    }).select("_id propertyName");
+
+    if (!property) {
+      logger.warn(`Property ${propertyId} not found for owner ${ownerId}`);
+
+      return errorResponse(resp, "Property not found.", 404, null);
+    }
+
+    // =====================================================
+    // STEP 4 : Read Search Filters
+    // =====================================================
+
+    const {
+      roomNumber,
+      roomType,
+      floor,
+      isOccupied,
+      page = 1,
+      limit = 10,
+    } = req.query;
+
+    // =====================================================
+    // STEP 5 : Pagination
+    // =====================================================
+
+    const currentPage = Math.max(Number(page), 1);
+    const pageSize = Math.max(Number(limit), 1);
+    const skip = (currentPage - 1) * pageSize;
+
+    // =====================================================
+    // STEP 6 : Build Dynamic Filter
+    // =====================================================
+
+    const filter = {
+      propertyId,
+    };
+
+    if (roomNumber) {
+      filter.roomNumber = Number(roomNumber);
+    }
+
+    if (roomType) {
+      filter.roomType = roomType;
+    }
+
+    if (floor) {
+      filter.floor = Number(floor);
+    }
+
+    if (isOccupied !== undefined) {
+      filter.isOccupied = isOccupied === "true";
+    }
+
+    // =====================================================
+    // STEP 7 : Fetch Rooms and Count in Parallel
+    // =====================================================
+
+    const [rooms, totalRecords] = await Promise.all([
+      Room.find(filter)
+        .sort({ roomNumber: 1 })
+        .skip(skip)
+        .limit(pageSize)
+        // .populate("currentTenantId", "fullName phone")
+        .lean(),
+
+      Room.countDocuments(filter),
+    ]);
+
+    // =====================================================
+    // STEP 8 : Prepare Response
+    // =====================================================
+
+    const totalPages = Math.ceil(totalRecords / pageSize);
+
+    const responseData = {
+      property: {
+        propertyId: property._id,
+        propertyName: property.propertyName,
+      },
+
+      rooms,
+
+      pagination: {
+        totalRecords,
+        currentPage,
+        totalPages,
+        pageSize,
+        hasNextPage: currentPage < totalPages,
+        hasPreviousPage: currentPage > 1,
+      },
+    };
+
+    logger.info(`${rooms.length} room(s) found.`);
+
+    return successResponse(
+      resp,
+      responseData,
+      "Rooms fetched successfully.",
+      200
+    );
+  } catch (error) {
+    logger.error(`Search Room Error : ${error.message}`);
+
+    return errorResponse(resp, "Internal server error.", 500, error);
+  }
+};

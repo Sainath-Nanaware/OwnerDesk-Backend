@@ -1,16 +1,16 @@
 const ROOM_TYPES = [
-  "Single Room",
-  "Double Room",
-  "Triple Room",
-  "1 RK",
-  "1 BHK",
-  "2 BHK",
-  "3 BHK",
-  "4 BHK",
+  "single_room",
+  "double_room",
+  "triple_room",
+  "1RK",
+  "1BHK",
+  "2BHK",
+  "3BHK",
+  "4BHK",
   "PG",
-  "Dormitory",
-  "Shop",
-  "Office",
+  "dormitory",
+  "shop",
+  "office",
 ];
 
 module.exports = ROOM_TYPES;

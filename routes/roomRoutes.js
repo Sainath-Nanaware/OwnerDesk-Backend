@@ -6,6 +6,7 @@ const auth = require("../middlewares/authMiddleware");
 //Controller
 const {
  addNewRoom,
+ getAllRoomsByProperty,
 } = require("../controllers/roomController");
 
 //validation middleware
@@ -21,6 +22,10 @@ router.post(
   validate(newRoomValidationSchema),
   addNewRoom
 );
-
+router.get(
+  "/all/:ownerId/:propertyId",
+  auth,
+  getAllRoomsByProperty
+);
 
 module.exports = router;

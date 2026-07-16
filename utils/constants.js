@@ -1,7 +1,7 @@
 const ROOM_TYPES = [
-  "single_room",
-  "double_room",
-  "triple_room",
+  "single",
+  "double",
+  "triple",
   "1RK",
   "1BHK",
   "2BHK",

@@ -81,6 +81,18 @@ const createTenantValidationSchema = Joi.object({
   }),
 });
 
+const updateTenantValidationSchema = createTenantValidationSchema
+  .fork(
+    ["fullName", "phone", "email", "idProofType", "idProofNumber", "status"],
+    (field) => field.optional()
+  )
+  .min(1) //using patch for update info so atlist one record is required 
+  .messages({
+    "object.min": "Please provide at least one field to update.",
+  });
+
+
 module.exports = {
   createTenantValidationSchema,
+  updateTenantValidationSchema,
 };

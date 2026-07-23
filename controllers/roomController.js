@@ -4,7 +4,8 @@ const { newRoomValidationSchema } = require("../validation/roomValidation");
 const logger = require("../logs/logger");
 const mongoose = require("mongoose");
 const { successResponse, errorResponse } = require("../utils/responseHandler");
-
+const Tenant = require("../models/tenantModel");
+const RoomAllocation = require("../models/roomAllocationModel");
 
 exports.addNewRoom = async (req, resp) => {
   logger.info("Creating new room...");
@@ -336,5 +337,329 @@ exports.searchRoomsByProperty = async (req, resp) => {
     logger.error(`Search Room Error : ${error.message}`);
 
     return errorResponse(resp, "Internal server error.", 500, error);
+  }
+};
+
+
+
+
+exports.allocateRoom = async (req, res) => {
+  const session = await mongoose.startSession();
+
+  try {
+    const { ownerId, propertyId, roomId, tenantId, joiningDate, remarks } =
+      req.body;
+
+    session.startTransaction();
+
+    //---------------------------------------------------------
+    // Verify Property
+    //---------------------------------------------------------
+    const property = await Property.findOne({
+      _id: propertyId,
+      ownerId,
+    }).session(session);
+
+    if (!property) {
+      await session.abortTransaction();
+      return res.status(404).json({
+        success: false,
+        message: "Property not found.",
+      });
+    }
+
+    //---------------------------------------------------------
+    // Verify Room
+    //---------------------------------------------------------
+    const room = await Room.findOne({
+      _id: roomId,
+      propertyId,
+      ownerId,
+    }).session(session);
+
+    if (!room) {
+      await session.abortTransaction();
+      return res.status(404).json({
+        success: false,
+        message: "Room not found.",
+      });
+    }
+
+    if (room.isOccupied) {
+      await session.abortTransaction();
+      return res.status(400).json({
+        success: false,
+        message: "Room is already occupied.",
+      });
+    }
+
+    //---------------------------------------------------------
+    // Verify Tenant
+    //---------------------------------------------------------
+    const tenant = await Tenant.findOne({
+      _id: tenantId,
+      ownerId,
+    }).session(session);
+
+    if (!tenant) {
+      await session.abortTransaction();
+      return res.status(404).json({
+        success: false,
+        message: "Tenant not found.",
+      });
+    }
+
+    if (tenant.status=="Active") {
+      await session.abortTransaction();
+      return res.status(400).json({
+        success: false,
+        message: "Tenant is already allocated to another room.",
+      });
+    }
+
+    //---------------------------------------------------------
+    // Update Room
+    //---------------------------------------------------------
+    room.isOccupied = true;
+    room.currentTenantId = tenant._id;
+
+    await room.save({ session });
+
+    //---------------------------------------------------------
+    // Update Tenant
+    //---------------------------------------------------------
+    tenant.status = "Active";
+
+    await tenant.save({ session });
+
+    //---------------------------------------------------------
+    // Update Property
+    //---------------------------------------------------------
+    property.occupiedRooms += 1;
+
+    await property.save({ session });
+
+    //---------------------------------------------------------
+    // Create Allocation History
+    //---------------------------------------------------------
+    const history = await RoomAllocation.create(
+      [
+        {
+          ownerId,
+          tenantId,
+          propertyId,
+          roomId,
+          joiningDate,
+          remarks,
+        },
+      ],
+      { session }
+    );
+
+    //---------------------------------------------------------
+    // Commit Transaction
+    //---------------------------------------------------------
+    await session.commitTransaction();
+
+    return res.status(200).json({
+      success: true,
+      message: "Room allocated successfully.",
+      data: {
+        property: {
+          id: property._id,
+          propertyName: property.propertyName,
+          occupiedRooms: property.occupiedRooms,
+        },
+        room: {
+          id: room._id,
+          roomNumber: room.roomNumber,
+          occupancyStatus: room.occupancyStatus,
+        },
+        tenant: {
+          id: tenant._id,
+          fullName: tenant.fullName,
+          status: tenant.status,
+        },
+        roomAllocation: history[0],
+      },
+    });
+  } catch (error) {
+    await session.abortTransaction();
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error.",
+      error: error.message,
+    });
+  } finally {
+    session.endSession();
+  }
+};
+
+
+exports.deallocateRoom = async (req, res) => {
+  const session = await mongoose.startSession();
+
+  try {
+    const { ownerId, propertyId, roomId, leavingDate, remarks } = req.body;
+
+    session.startTransaction();
+
+    //---------------------------------------------------------
+    // Verify Property
+    //---------------------------------------------------------
+    const property = await Property.findOne({
+      _id: propertyId,
+      ownerId,
+    }).session(session);
+
+    if (!property) {
+      await session.abortTransaction();
+
+      return res.status(404).json({
+        success: false,
+        message: "Property not found.",
+      });
+    }
+
+    //---------------------------------------------------------
+    // Verify Room
+    //---------------------------------------------------------
+    const room = await Room.findOne({
+      _id: roomId,
+      ownerId,
+      propertyId,
+    }).session(session);
+
+    if (!room) {
+      await session.abortTransaction();
+
+      return res.status(404).json({
+        success: false,
+        message: "Room not found.",
+      });
+    }
+
+    if (!room.isOccupied) {
+      await session.abortTransaction();
+
+      return res.status(400).json({
+        success: false,
+        message: "Room is already vacant.",
+      });
+    }
+
+    //---------------------------------------------------------
+    // Get Current Tenant
+    //---------------------------------------------------------
+    const tenant = await Tenant.findOne({
+      _id: room.currentTenantId,
+      ownerId,
+    }).session(session);
+
+    if (!tenant) {
+      await session.abortTransaction();
+
+      return res.status(404).json({
+        success: false,
+        message: "Current tenant not found.",
+      });
+    }
+
+    //---------------------------------------------------------
+    // Find Active Allocation
+    //---------------------------------------------------------
+    const allocation = await RoomAllocation.findOne({
+      ownerId,
+      propertyId,
+      roomId,
+      tenantId: tenant._id,
+      leavingDate: null,
+    }).session(session);
+
+    if (!allocation) {
+      await session.abortTransaction();
+
+      return res.status(404).json({
+        success: false,
+        message: "Active room allocation record not found.",
+      });
+    }
+
+    //---------------------------------------------------------
+    // Update Room
+    //---------------------------------------------------------
+    room.isOccupied = false;
+    room.currentTenantId = null;
+
+    await room.save({ session });
+
+    //---------------------------------------------------------
+    // Update Tenant
+    //---------------------------------------------------------
+    tenant.status = "Inactive";
+
+    await tenant.save({ session });
+
+    //---------------------------------------------------------
+    // Update Property
+    //---------------------------------------------------------
+    if (property.occupiedRooms > 0) {
+      property.occupiedRooms -= 1;
+    }
+
+    await property.save({ session });
+
+    //---------------------------------------------------------
+    // Update Allocation History
+    //---------------------------------------------------------
+    allocation.status = "Completed" || allocation.status;
+    allocation.leavingDate = leavingDate || new Date();
+    allocation.remarks = remarks || allocation.remarks;
+
+    await allocation.save({ session });
+
+    //---------------------------------------------------------
+    // Commit Transaction
+    //---------------------------------------------------------
+    await session.commitTransaction();
+
+    return res.status(200).json({
+      success: true,
+      message: "Room deallocated successfully.",
+      data: {
+        property: {
+          id: property._id,
+          propertyName: property.propertyName,
+          occupiedRooms: property.occupiedRooms,
+        },
+
+        room: {
+          id: room._id,
+          roomNumber: room.roomNumber,
+          isOccupied: room.isOccupied,
+        },
+
+        tenant: {
+          id: tenant._id,
+          fullName: tenant.fullName,
+          status: tenant.status,
+        },
+
+        roomAllocation: allocation,
+      },
+    });
+  } catch (error) {
+    await session.abortTransaction();
+
+    console.error("Room Deallocation Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error.",
+      error: error.message,
+    });
+  } finally {
+    session.endSession();
   }
 };

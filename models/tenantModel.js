@@ -93,7 +93,7 @@ const tenantSchema = new mongoose.Schema(
         values: ["Active", "Inactive"],
         message: "{VALUE} is not a valid tenant status.",
       },
-      default: "Active",
+      default: "Inactive",
     },
   },
   {

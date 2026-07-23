@@ -8,6 +8,8 @@ const {
  addNewRoom,
  getAllRoomsByProperty,
  searchRoomsByProperty,
+ allocateRoom,
+ deallocateRoom
 } = require("../controllers/roomController");
 
 //validation middleware
@@ -15,7 +17,7 @@ const validate = require("../middlewares/schemaValitation");
 
 //schema for validation
 const { newRoomValidationSchema} = require("../validation/roomValidation");
-
+const {createRoomAllocationSchema,deallocateRoomSchema}=require("../validation/roomAllocationValidation")
 
 router.post(
   "/add",
@@ -43,5 +45,7 @@ Combined filters
 GET /api/rooms/property/6890abcd/rooms?roomType=Single Room&isOccupied=true&page=1&limit=10
 // call api example : GET /api/rooms/property/689ab1234567890abcdef123/rooms?roomNumber=101&page=2&limit=10 */
 router.get("/property/:propertyId/rooms", auth, searchRoomsByProperty);
+router.post("/allocate",auth,validate(createRoomAllocationSchema),allocateRoom)
+router.patch("/deallocate", auth, validate(deallocateRoomSchema),deallocateRoom);
 
 module.exports = router;

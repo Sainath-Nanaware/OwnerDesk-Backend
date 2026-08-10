@@ -36,6 +36,10 @@ app.use("/room",roomRoutes)
 const tenantRoutes=require("./routes/tenantRoutes")
 app.use("/tenant",tenantRoutes) 
 
+//ElectricityBill route
+const electricityBillRoutes = require("./routes/electricityBillRoutes");
+app.use("/electBill", electricityBillRoutes); 
+
 app.get("/", (req, res) => {
   res.send("OwnerDesk Devloped by Sainath Nanaware.");
 });

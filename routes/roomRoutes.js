@@ -9,7 +9,8 @@ const {
  getAllRoomsByProperty,
  searchRoomsByProperty,
  allocateRoom,
- deallocateRoom
+ deallocateRoom,
+ roomInfo
 } = require("../controllers/roomController");
 
 //validation middleware
@@ -47,5 +48,8 @@ GET /api/rooms/property/6890abcd/rooms?roomType=Single Room&isOccupied=true&page
 router.get("/property/:propertyId/rooms", auth, searchRoomsByProperty);
 router.post("/allocate",auth,validate(createRoomAllocationSchema),allocateRoom)
 router.patch("/deallocate", auth, validate(deallocateRoomSchema),deallocateRoom);
+//GET /api/room/dashboard/689f3d961d0f9f5c4d123458?ownerId=689f3d7c1d0f9f5c4d123456&month=7&year=2026
+router.get("/dashboard/:roomId", roomInfo);
+
 
 module.exports = router;

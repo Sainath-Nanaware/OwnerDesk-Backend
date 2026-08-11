@@ -6,6 +6,8 @@ const mongoose = require("mongoose");
 const { successResponse, errorResponse } = require("../utils/responseHandler");
 const Tenant = require("../models/tenantModel");
 const RoomAllocation = require("../models/roomAllocationModel");
+const ElectricityBill = require("../models/electricityBillModel");
+const PaymentStatus = require("../models/paymentStatusModel");
 
 exports.addNewRoom = async (req, resp) => {
   logger.info("Creating new room...");
@@ -661,5 +663,114 @@ exports.deallocateRoom = async (req, res) => {
     });
   } finally {
     session.endSession();
+  }
+};
+
+
+
+exports.roomInfo = async (req, res) => {
+  logger.info("get room Info by roomID")
+  try {
+    const { roomId } = req.params;
+    const { ownerId, month, year } = req.query;
+
+    //-----------------------------------------------------
+    // Validate Required Fields
+    //-----------------------------------------------------
+    if (!ownerId || !month || !year) {
+      logger.warn("ownerId, month and year are required.")
+      return res.status(400).json({
+        success: false,
+        message: "ownerId, month and year are required.",
+      });
+    }
+
+    //-----------------------------------------------------
+    // Find Room
+    //-----------------------------------------------------
+    const room = await Room.findOne({
+      _id: roomId,
+      ownerId,
+    }).lean();
+
+    if (!room) {
+      logger.warn("RoomID not found!")
+      return res.status(404).json({
+        success: false,
+        message: "Room not found.",
+      });
+    }
+
+    //-----------------------------------------------------
+    // Find Property
+    //-----------------------------------------------------
+    const property = await Property.findById(room.propertyId)
+      .select("propertyName address")
+      .lean();
+
+    //-----------------------------------------------------
+    // Find Current Tenant
+    //-----------------------------------------------------
+    let tenant = null;
+
+    if (room.currentTenantId) {
+      tenant = await Tenant.findById(room.currentTenantId)
+        .select("-__v")
+        .lean();
+    }
+
+    //-----------------------------------------------------
+    // Find Electricity Bill
+    //-----------------------------------------------------
+    const electricityBill = await ElectricityBill.findOne({
+      ownerId,
+      roomId,
+      month,
+      year,
+    }).lean();
+
+    //-----------------------------------------------------
+    // Find Payment Status
+    //-----------------------------------------------------
+    const paymentStatus = await PaymentStatus.findOne({
+      ownerId,
+      roomId,
+      month,
+      year,
+    }).lean();
+
+    //-----------------------------------------------------
+    // Response
+    //-----------------------------------------------------
+    return res.status(200).json({
+      success: true,
+      message: "Room Info fetched successfully.",
+
+      data: {
+        property,
+
+        room: {
+          _id: room._id,
+          roomNumber: room.roomNumber,
+          roomType: room.roomType,
+          floor: room.floor,
+          monthlyRent: room.monthlyRent,
+          deposit: room.deposit,
+          isOccupied: room.isOccupied,
+        },
+
+        tenant,
+
+        electricityBill: electricityBill || null,
+
+        paymentStatus: paymentStatus || null,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error.",
+      error: error.message,
+    });
   }
 };

@@ -55,11 +55,73 @@ const newRoomValidationSchema = Joi.object({
     "number.base": "Deposit amount must be a number.",
     "number.min": "Deposit amount cannot be negative.",
   }),
+  isDeleted: Joi.boolean().optional().default(false).messages({
+    "boolean.base": "isDeleted must be a boolean.",
+  }),
 }).options({
   abortEarly: false,
   stripUnknown: true,
 });
 
+const updateRoomSchema = Joi.object({
+  ownerId: Joi.string()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .required()
+    .messages({
+      "string.base": "Owner ID must be a string.",
+      "string.empty": "Owner ID is required.",
+      "string.pattern.base": "Invalid Owner ID.",
+      "any.required": "Owner ID is required.",
+    }),
+
+  propertyId: Joi.string()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .optional()
+    .messages({
+      "string.base": "Property ID must be a string.",
+      "string.empty": "Property ID is required.",
+      "string.pattern.base": "Invalid Property ID.",
+      "any.required": "Property ID is required.",
+    }),
+  roomNumber: Joi.number().integer().min(1).optional().messages({
+    "number.base": "Room number must be a number.",
+    "number.integer": "Room number must be an integer.",
+    "number.min": "Room number must be greater than 0.",
+  }),
+
+  roomType: Joi.string()
+    .valid(...ROOM_TYPES)
+    .optional()
+    .messages({
+      "any.only": "Invalid room type.",
+    }),
+
+  floor: Joi.number().integer().min(0).optional().messages({
+    "number.base": "Floor must be a number.",
+    "number.integer": "Floor must be an integer.",
+    "number.min": "Floor cannot be negative.",
+  }),
+
+  monthlyRent: Joi.number().min(1).optional().messages({
+    "number.base": "Monthly rent must be a number.",
+    "number.min": "Monthly rent must be greater than 0.",
+  }),
+
+  deposit: Joi.number().min(0).optional().messages({
+    "number.base": "Deposit must be a number.",
+    "number.min": "Deposit cannot be negative.",
+  }),
+  isDeleted: Joi.boolean().optional().default(false).messages({
+    "boolean.base": "isDeleted must be a boolean.",
+  }),
+})
+  .min(1)
+  .messages({
+    "object.min": "At least one room field is required for update.",
+  });
+
+
 module.exports = {
   newRoomValidationSchema,
+  updateRoomSchema,
 };

@@ -30,7 +30,7 @@ const roomSchema = new mongoose.Schema(
       required: [true, "Room number is required"],
       min: [1, "Room number must be greater than 0"],
     },
-    
+
     roomType: {
       type: String,
       enum: ROOM_TYPES,
@@ -72,6 +72,11 @@ const roomSchema = new mongoose.Schema(
         message: "Invalid Tenant ID",
       },
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -103,6 +108,11 @@ roomSchema.pre("save", function (next) {
  * Compound Unique Index
  * Room number must be unique within a property.
  */
+// =====================================================
+// Unique Room Number Within Active Rooms
+// Deleted rooms don't block room-number reuse
+// =====================================================
+
 roomSchema.index(
   {
     propertyId: 1,
@@ -110,9 +120,11 @@ roomSchema.index(
   },
   {
     unique: true,
+    partialFilterExpression: {
+      isDeleted: false,
+    },
   }
 );
-
 /**
  * Frequently used query index
  */

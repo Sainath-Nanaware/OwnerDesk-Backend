@@ -10,14 +10,16 @@ const {
  searchRoomsByProperty,
  allocateRoom,
  deallocateRoom,
- roomInfo
+ roomInfo,
+ updateRoom,
+ deleteRoom
 } = require("../controllers/roomController");
 
 //validation middleware
 const validate = require("../middlewares/schemaValitation");
 
 //schema for validation
-const { newRoomValidationSchema} = require("../validation/roomValidation");
+const { newRoomValidationSchema,updateRoomSchema} = require("../validation/roomValidation");
 const {createRoomAllocationSchema,deallocateRoomSchema}=require("../validation/roomAllocationValidation")
 
 router.post(
@@ -50,6 +52,7 @@ router.post("/allocate",auth,validate(createRoomAllocationSchema),allocateRoom)
 router.patch("/deallocate", auth, validate(deallocateRoomSchema),deallocateRoom);
 //GET /api/room/dashboard/689f3d961d0f9f5c4d123458?ownerId=689f3d7c1d0f9f5c4d123456&month=7&year=2026
 router.get("/dashboard/:roomId", roomInfo);
-
+router.patch("/:roomId", auth, validate(updateRoomSchema),updateRoom);
+router.patch("/delete/:ownerId/:roomId",auth,deleteRoom)
 
 module.exports = router;

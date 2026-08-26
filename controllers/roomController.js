@@ -16,10 +16,10 @@ exports.addNewRoom = async (req, resp) => {
     // ==========================================
     // STEP 1 : Validate Request Body
     // ==========================================
-    //it's done bu joi validation middleware
+    // Joi validation middleware handles this.
+
     // ==========================================
     // STEP 2 : Verify Property belongs to Owner
-    // Single Query
     // ==========================================
 
     const property = await Property.findOne({
@@ -44,8 +44,18 @@ exports.addNewRoom = async (req, resp) => {
     // STEP 3 : Check Property Capacity
     // ==========================================
 
+    // ⭐ CHANGED
+    // Before:
+    //
+    // const totalExistingRooms = await Room.countDocuments({
+    //   propertyId: req.body.propertyId,
+    // });
+    //
+    // Now we count ONLY active rooms.
+
     const totalExistingRooms = await Room.countDocuments({
       propertyId: req.body.propertyId,
+      isDeleted: false, // ⭐ CHANGED
     });
 
     if (totalExistingRooms >= property.totalRooms) {
@@ -62,19 +72,64 @@ exports.addNewRoom = async (req, resp) => {
     }
 
     // ==========================================
-    // STEP 4 : Create Room
-    // Duplicate room numbers are handled by
-    // MongoDB Unique Index
+    // STEP 4 : Check Room Number
     // ==========================================
 
-    const room = await Room.create(req.body);
+    // ⭐ CHANGED
+    // Check only active rooms.
+    //
+    // If Room 101 is deleted:
+    //
+    // Room 101 -> isDeleted: true
+    //
+    // then creating Room 101 again is allowed.
+
+    const existingRoom = await Room.findOne({
+      propertyId: req.body.propertyId,
+      roomNumber: req.body.roomNumber,
+      isDeleted: false, // ⭐ CHANGED
+    }).select("_id roomNumber");
+
+    if (existingRoom) {
+      logger.warn(
+        `Room number ${req.body.roomNumber} already exists in property ${req.body.propertyId}`
+      );
+
+      return errorResponse(
+        resp,
+        "Room number already exists in this property.",
+        409,
+        null
+      );
+    }
+
+    // ==========================================
+    // STEP 5 : Create Room
+    // ==========================================
+
+    const room = await Room.create({
+      ...req.body,
+
+      // ⭐ CHANGED
+      // Every newly created room must be active.
+      isDeleted: false,
+
+      // ⭐ Recommended
+      // Every newly created room should initially be vacant.
+      isOccupied: false,
+      currentTenantId: null,
+    });
+
+    // ==========================================
+    // STEP 6 : Success Response
+    // ==========================================
 
     logger.info(`Room created successfully : ${room._id}`);
 
     return successResponse(resp, room, "Room created successfully.", 201);
   } catch (error) {
     // ==========================================
-    // Duplicate Room Number
+    // STEP 7 : Duplicate Room Number
     // ==========================================
 
     if (error.code === 11000) {
@@ -89,6 +144,10 @@ exports.addNewRoom = async (req, resp) => {
         null
       );
     }
+
+    // ==========================================
+    // STEP 8 : Other Errors
+    // ==========================================
 
     logger.error(`Create Room Error : ${error.message}`);
 
@@ -126,6 +185,7 @@ exports.getAllRoomsByProperty = async (req, resp) => {
     const property = await Property.findOne({
       _id: propertyId,
       ownerId: ownerId,
+      isDeleted: false,
     }).select("_id propertyName totalRooms occupiedRooms");
 
     if (!property) {
@@ -270,6 +330,7 @@ exports.searchRoomsByProperty = async (req, resp) => {
 
     const filter = {
       propertyId,
+      isDeleted: false,
     };
 
     if (roomNumber) {
@@ -277,6 +338,7 @@ exports.searchRoomsByProperty = async (req, resp) => {
     }
 
     if (roomType) {
+      console.log(roomType)
       filter.roomType = roomType;
     }
 
@@ -772,5 +834,306 @@ exports.roomInfo = async (req, res) => {
       message: "Internal Server Error.",
       error: error.message,
     });
+  }
+};
+
+exports.updateRoom = async (req, res) => {
+  const session = await mongoose.startSession();
+
+  try {
+    const { roomId } = req.params;
+    const { ownerId } = req.body;
+
+    //----------------------------------------------------------
+    // Start Transaction
+    //----------------------------------------------------------
+
+    session.startTransaction();
+
+    //----------------------------------------------------------
+    // Find Room
+    //
+    // We verify ownerId also so that one owner cannot update
+    // another owner's room.
+    //----------------------------------------------------------
+
+    const room = await Room.findOne({
+      _id: roomId,
+      ownerId,
+    }).session(session);
+
+    //----------------------------------------------------------
+    // Room Not Found
+    //----------------------------------------------------------
+
+    if (!room) {
+      await session.abortTransaction();
+
+      return res.status(404).json({
+        success: false,
+        message: "Room not found.",
+      });
+    }
+
+    //----------------------------------------------------------
+    // Get fields which are allowed to update
+    //----------------------------------------------------------
+
+    const { roomNumber, roomType, floor, monthlyRent, deposit, isDeleted } = req.body;
+
+    //----------------------------------------------------------
+    // Check if Room Number is being changed
+    //----------------------------------------------------------
+
+    if (roomNumber !== undefined && roomNumber !== room.roomNumber) {
+      //--------------------------------------------------------
+      // Check duplicate room number inside same property
+      //--------------------------------------------------------
+
+      const existingRoom = await Room.findOne({
+        _id: { $ne: roomId },
+        propertyId: room.propertyId,
+        roomNumber,
+      }).session(session);
+
+      if (existingRoom) {
+        await session.abortTransaction();
+
+        return res.status(409).json({
+          success: false,
+          message: "Room number already exists in this property.",
+        });
+      }
+
+      room.roomNumber = roomNumber;
+    }
+
+    //----------------------------------------------------------
+    // Update Room Type
+    //----------------------------------------------------------
+
+    if (roomType !== undefined) {
+      room.roomType = roomType;
+    }
+
+    //----------------------------------------------------------
+    // Update Floor
+    //----------------------------------------------------------
+
+    if (floor !== undefined) {
+      room.floor = floor;
+    }
+
+    //----------------------------------------------------------
+    // Update Monthly Rent
+    //----------------------------------------------------------
+
+    if (monthlyRent !== undefined) {
+      room.monthlyRent = monthlyRent;
+    }
+
+    //----------------------------------------------------------
+    // Update Deposit
+    //----------------------------------------------------------
+
+    if (deposit !== undefined) {
+      room.deposit = deposit;
+    }
+    //isDeleted update
+
+     if (isDeleted !== undefined) {
+       room.isDeleted = isDeleted;
+     }
+
+    //----------------------------------------------------------
+    // IMPORTANT
+    //
+    // We intentionally DO NOT update:
+    //
+    // ownerId
+    // propertyId
+    // isOccupied
+    // currentTenantId
+    //
+    // These fields are controlled by other business APIs.
+    //----------------------------------------------------------
+
+    //----------------------------------------------------------
+    // Save Room
+    //----------------------------------------------------------
+
+    await room.save({ session });
+
+    //----------------------------------------------------------
+    // Commit Transaction
+    //----------------------------------------------------------
+
+    await session.commitTransaction();
+
+    //----------------------------------------------------------
+    // Return Updated Room
+    //----------------------------------------------------------
+
+    return res.status(200).json({
+      success: true,
+      message: "Room updated successfully.",
+      data:room
+    });
+  } catch (error) {
+    //----------------------------------------------------------
+    // Rollback Transaction
+    //----------------------------------------------------------
+
+    await session.abortTransaction();
+
+    //----------------------------------------------------------
+    // Handle Duplicate Key Error
+    //
+    // This is an additional safety check for the unique index:
+    //
+    // propertyId + roomNumber
+    //----------------------------------------------------------
+
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "Room number already exists in this property.",
+      });
+    }
+
+    //----------------------------------------------------------
+    // Internal Server Error
+    //----------------------------------------------------------
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error.",
+      error: error.message,
+    });
+  } finally {
+    //----------------------------------------------------------
+    // End MongoDB Session
+    //----------------------------------------------------------
+
+    await session.endSession();
+  }
+};
+
+
+//we perform soft delete means record not permenat delete from DB only we change status of  isDeleted:true,
+//1st we need deallocate and then perform soft delete opration:
+
+exports.deleteRoom = async (req, res) => {
+  const session = await mongoose.startSession();
+
+  try {
+    const { roomId } = req.params;
+    const { ownerId } = req.params;
+
+    //----------------------------------------------------------
+    // Validate ObjectIds
+    //----------------------------------------------------------
+
+    if (
+      !mongoose.Types.ObjectId.isValid(roomId) ||
+      !mongoose.Types.ObjectId.isValid(ownerId)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid roomId or ownerId.",
+      });
+    }
+
+    //----------------------------------------------------------
+    // Start Transaction
+    //----------------------------------------------------------
+
+    session.startTransaction();
+
+    //----------------------------------------------------------
+    // Find Room
+    //
+    // isDeleted:false means we only allow deletion of an
+    // active room.
+    //----------------------------------------------------------
+
+    const room = await Room.findOne({
+      _id: roomId,
+      ownerId,
+      isDeleted: false,
+    }).session(session);
+
+    //----------------------------------------------------------
+    // Room Not Found
+    //----------------------------------------------------------
+
+    if (!room) {
+      await session.abortTransaction();
+
+      return res.status(404).json({
+        success: false,
+        message: "Room not found.",
+      });
+    }
+
+    //----------------------------------------------------------
+    // Don't Delete Occupied Room
+    //----------------------------------------------------------
+
+    if (room.isOccupied || room.currentTenantId) {
+      await session.abortTransaction();
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "Occupied room cannot be deleted. Please deallocate the tenant first.",
+      });
+    }
+
+    //----------------------------------------------------------
+    // Soft Delete Room
+    //----------------------------------------------------------
+
+    room.isDeleted = true;
+
+    await room.save({ session });
+
+    //----------------------------------------------------------
+    // Commit Transaction
+    //----------------------------------------------------------
+
+    await session.commitTransaction();
+
+    //----------------------------------------------------------
+    // Response
+    //----------------------------------------------------------
+
+    return res.status(200).json({
+      success: true,
+      message: "Room deleted successfully.",
+      data: {
+        roomId: room._id,
+        roomNumber: room.roomNumber,
+        isDeleted: room.isDeleted,
+      },
+    });
+  } catch (error) {
+    //----------------------------------------------------------
+    // Rollback Transaction
+    //----------------------------------------------------------
+
+    await session.abortTransaction();
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error.",
+      error: error.message,
+    });
+  } finally {
+    //----------------------------------------------------------
+    // End Session
+    //----------------------------------------------------------
+
+    await session.endSession();
   }
 };

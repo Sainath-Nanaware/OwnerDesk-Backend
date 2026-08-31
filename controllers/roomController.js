@@ -409,6 +409,7 @@ exports.searchRoomsByProperty = async (req, resp) => {
 
 exports.allocateRoom = async (req, res) => {
   const session = await mongoose.startSession();
+  logger.info("In allocateRoom tenant controller!")
 
   try {
     const { ownerId, propertyId, roomId, tenantId, joiningDate, remarks } =
@@ -563,6 +564,7 @@ exports.allocateRoom = async (req, res) => {
 
 exports.deallocateRoom = async (req, res) => {
   const session = await mongoose.startSession();
+  logger.info("In deallocate tenant!")
 
   try {
     const { ownerId, propertyId, roomId, leavingDate, remarks } = req.body;
@@ -839,6 +841,7 @@ exports.roomInfo = async (req, res) => {
 
 exports.updateRoom = async (req, res) => {
   const session = await mongoose.startSession();
+  logger.info("in update room info controller!")
 
   try {
     const { roomId } = req.params;
@@ -973,7 +976,7 @@ exports.updateRoom = async (req, res) => {
     //----------------------------------------------------------
     // Return Updated Room
     //----------------------------------------------------------
-
+    logger.info("Room updated successfully")
     return res.status(200).json({
       success: true,
       message: "Room updated successfully.",

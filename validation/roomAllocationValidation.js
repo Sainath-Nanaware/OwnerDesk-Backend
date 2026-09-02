@@ -33,7 +33,7 @@ const createRoomAllocationSchema = Joi.object({
     "any.required": "Room ID is required.",
   }),
 
-  joiningDate: Joi.date().required().messages({
+  joiningDate: Joi.date().optional().messages({
     "date.base": "Joining date must be a valid date.",
     "any.required": "Joining date is required.",
   }),
@@ -76,7 +76,7 @@ const deallocateRoomSchema = Joi.object({
     "any.required": "Room ID is required.",
   }),
 
-  leavingDate: Joi.date().required().messages({
+  leavingDate: Joi.date().optional().messages({
     "date.base": "Leaving date must be a valid date.",
     "any.required": "Leaving date is required.",
   }),

@@ -8,6 +8,7 @@ const Tenant = require("../models/tenantModel");
 const RoomAllocation = require("../models/roomAllocationModel");
 const ElectricityBill = require("../models/electricityBillModel");
 const PaymentStatus = require("../models/paymentStatusModel");
+const dayjs = require("dayjs");
 
 exports.addNewRoom = async (req, resp) => {
   logger.info("Creating new room...");
@@ -412,7 +413,7 @@ exports.allocateRoom = async (req, res) => {
   logger.info("In allocateRoom tenant controller!")
 
   try {
-    const { ownerId, propertyId, roomId, tenantId, joiningDate, remarks } =
+    const { ownerId, propertyId, roomId, tenantId, remarks } =
       req.body;
 
     session.startTransaction();
@@ -514,7 +515,7 @@ exports.allocateRoom = async (req, res) => {
           tenantId,
           propertyId,
           roomId,
-          joiningDate,
+          joiningDate:dayjs().format('YYYY-MM-DD'),// get current date
           remarks,
         },
       ],
@@ -525,6 +526,7 @@ exports.allocateRoom = async (req, res) => {
     // Commit Transaction
     //---------------------------------------------------------
     await session.commitTransaction();
+    logger.info("Room allocated successfully");
 
     return res.status(200).json({
       success: true,
@@ -550,7 +552,7 @@ exports.allocateRoom = async (req, res) => {
     });
   } catch (error) {
     await session.abortTransaction();
-
+    logger.warn("room allocation failed!")
     return res.status(500).json({
       success: false,
       message: "Internal Server Error.",
@@ -567,7 +569,7 @@ exports.deallocateRoom = async (req, res) => {
   logger.info("In deallocate tenant!")
 
   try {
-    const { ownerId, propertyId, roomId, leavingDate, remarks } = req.body;
+    const { ownerId, propertyId, roomId, remarks } = req.body;
 
     session.startTransaction();
 
@@ -680,16 +682,15 @@ exports.deallocateRoom = async (req, res) => {
     // Update Allocation History
     //---------------------------------------------------------
     allocation.status = "Completed" || allocation.status;
-    allocation.leavingDate = leavingDate || new Date();
+    allocation.leavingDate = dayjs().format("YYYY-MM-DD") || new Date(); // get current date
     allocation.remarks = remarks || allocation.remarks;
 
-    await allocation.save({ session });
 
     //---------------------------------------------------------
     // Commit Transaction
     //---------------------------------------------------------
     await session.commitTransaction();
-
+    logger.info("Room deallocated successfully.");
     return res.status(200).json({
       success: true,
       message: "Room deallocated successfully.",
@@ -719,6 +720,7 @@ exports.deallocateRoom = async (req, res) => {
     await session.abortTransaction();
 
     console.error("Room Deallocation Error:", error);
+    looger.warn("Room deallocation failed!.");
 
     return res.status(500).json({
       success: false,

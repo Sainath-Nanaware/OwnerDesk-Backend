@@ -7,6 +7,8 @@ const auth = require("../middlewares/authMiddleware");
 //Controller 
 const {
   createOrUpdateElectricityBill,
+  updateCharge,
+  deleteCharge
 } = require("../controllers/electricityBillController");
 
 //validation middleware
@@ -19,6 +21,6 @@ const {
 
 
 router.post("/add", auth, validate(createElectricityBillValidationSchema), createOrUpdateElectricityBill);
-
-
+router.patch("/additionalCharges/:paymentStatusId/charge/:chargeId",auth,updateCharge)
+router.delete("/paymentStatus/:paymentStatusId/charge/:chargeId",auth,deleteCharge);
 module.exports = router;

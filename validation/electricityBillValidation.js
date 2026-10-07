@@ -25,7 +25,7 @@ const createElectricityBillValidationSchema = Joi.object({
     "any.required": "Room ID is required.",
   }),
 
-  tenantId: Joi.string().hex().length(24).required().messages({
+  tenantId: Joi.string().hex().length(24).optional().messages({
     "string.base": "Tenant ID must be a string.",
     "string.empty": "Tenant ID is required.",
     "string.hex": "Tenant ID must be a valid MongoDB ObjectId.",
@@ -60,7 +60,7 @@ const createElectricityBillValidationSchema = Joi.object({
     "any.required": "Current reading is required.",
   }),
 
-  rate: Joi.number().positive().required().messages({
+  rate: Joi.number().min(0).required().messages({
     "number.base": "Rate must be a number.",
     "number.positive": "Rate must be greater than zero.",
     "any.required": "Electricity rate is required.",
@@ -68,9 +68,10 @@ const createElectricityBillValidationSchema = Joi.object({
   charges: Joi.array()
     .items(
       Joi.object({
+        _id: Joi.string().hex().length(24).optional(),
+        
         type: Joi.string()
           .valid(
-            "Rent",
             "WiFi",
             "Motor",
             "Electricity",
@@ -97,10 +98,10 @@ const createElectricityBillValidationSchema = Joi.object({
         }),
 
         status: Joi.string()
-          .valid("Pending", "Paid")
-          .default("Pending")
+          // .valid("partially_paid", "paid", "unpaid")
+          .default("unpaid")
           .messages({
-            "any.only": "Status must be Pending or Paid.",
+            "any.only": "Status must be Unpaid or Paid.",
           }),
 
         paidDate: Joi.date().allow(null).optional().messages({

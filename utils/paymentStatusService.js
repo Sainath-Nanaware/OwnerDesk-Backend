@@ -13,12 +13,13 @@ const recalculateTotals = (paymentStatus) => {
 
     // Update individual charge status
     if (charge.paidAmount <= 0) {
-      charge.status = "Pending";
+      charge.status = "unpaid";
     } else if (charge.paidAmount >= charge.amount) {
-      charge.status = "Paid";
-    } else {
-      charge.status = "Partially Paid";
+      charge.status = "paid";
     }
+    //  else {
+    //   charge.status = "Partially Paid";
+    // }
   });
 
   paymentStatus.totalAmount = totalAmount;
@@ -27,12 +28,13 @@ const recalculateTotals = (paymentStatus) => {
 
   // Overall payment status
   if (paymentStatus.totalReceived <= 0) {
-    paymentStatus.paymentStatus = "Pending";
+    paymentStatus.paymentStatus = "unpaid";
   } else if (paymentStatus.dueAmount <= 0) {
-    paymentStatus.paymentStatus = "Paid";
-  } else {
-    paymentStatus.paymentStatus = "Partially Paid";
+    paymentStatus.paymentStatus = "paid";
   }
+  //  else {
+  //   paymentStatus.paymentStatus = "Partially Paid";
+  // }
 };
 
 /**
@@ -94,7 +96,7 @@ const createOrUpdatePaymentStatus = async ({
 
       paidAmount: Number(charge.paidAmount ?? 0),
 
-      status: charge.status ?? "Pending",
+      status: charge.status ?? "pending",
 
       paidDate: charge.paidDate ?? null,
 

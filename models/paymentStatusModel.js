@@ -42,8 +42,8 @@ const chargeSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["Pending", "Partially Paid", "Paid"],
-      default: "Pending",
+      enum: ["unpaid", "paid"],
+      default: "unpaid",
     },
 
     paidDate: {
@@ -56,9 +56,6 @@ const chargeSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
-  },
-  {
-    _id: false,
   }
 );
 
@@ -130,8 +127,8 @@ const paymentStatusSchema = new mongoose.Schema(
 
     paymentStatus: {
       type: String,
-      enum: ["Pending", "Partially Paid", "Paid"],
-      default: "Pending",
+      enum: [ "paid", "unpaid"],
+      default: "unpaid",
     },
   },
   {

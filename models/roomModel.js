@@ -77,6 +77,11 @@ const roomSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    remarks: {
+      type: String,
+      trim: true,
+      default: "",
+    },
   },
   {
     timestamps: true,

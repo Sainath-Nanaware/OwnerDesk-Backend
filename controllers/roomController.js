@@ -823,6 +823,7 @@ exports.roomInfo = async (req, res) => {
           monthlyRent: room.monthlyRent,
           deposit: room.deposit,
           isOccupied: room.isOccupied,
+          remarks: room.remarks,
         },
 
         tenant,
@@ -1142,3 +1143,57 @@ exports.deleteRoom = async (req, res) => {
     await session.endSession();
   }
 };
+
+
+exports.updateRemark = async (req, res) => {
+  logger.info("In update remark")
+  try {
+    const { roomId } = req.params;
+    const  { remarks }    = req.body;
+
+    // 1. Validate roomId
+    if (!mongoose.Types.ObjectId.isValid(roomId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid roomId.",
+      });
+    }
+
+    // 2. Find room
+    const room = await Room.findById(roomId);
+
+    if (!room) {
+      logger.error("room Id is invalid!")
+      return res.status(404).json({
+        success: false,
+        message: "Room not found.",
+      });
+    }
+
+    // 3. Update remarks
+    room.remarks = remarks;
+
+    // 4. Save room
+    await room.save();
+    logger.info("Room remark updated successfully.");
+    // 5. Response
+    return res.status(200).json({
+      success: true,
+      message: "Room remark updated successfully.",
+      data: {
+        roomId: room._id,
+        remarks: room.remarks,
+      },
+    });
+  } catch (error) {
+    logger.error("Update Remark Error:", error);
+    console.error("Update Remark Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+      error: error.message,
+    });
+  }
+};
+

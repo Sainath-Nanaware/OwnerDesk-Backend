@@ -58,6 +58,9 @@ const newRoomValidationSchema = Joi.object({
   isDeleted: Joi.boolean().optional().default(false).messages({
     "boolean.base": "isDeleted must be a boolean.",
   }),
+  remarks: Joi.string().trim().max(200).allow("").optional().messages({
+    "string.max": "Remarks cannot exceed 200 characters.",
+  }),
 }).options({
   abortEarly: false,
   stripUnknown: true,
@@ -114,14 +117,23 @@ const updateRoomSchema = Joi.object({
   isDeleted: Joi.boolean().optional().default(false).messages({
     "boolean.base": "isDeleted must be a boolean.",
   }),
+  remarks: Joi.string().trim().max(200).allow("").optional().messages({
+    "string.max": "Remarks cannot exceed 200 characters.",
+  }),
 })
   .min(1)
   .messages({
     "object.min": "At least one room field is required for update.",
   });
 
+const updateRemarkValidation = Joi.object({
+  remarks: Joi.string().trim().max(200).allow("").optional().messages({
+    "string.max": "Remarks cannot exceed 200 characters.",
+  }),
+});
 
 module.exports = {
   newRoomValidationSchema,
   updateRoomSchema,
+  updateRemarkValidation
 };

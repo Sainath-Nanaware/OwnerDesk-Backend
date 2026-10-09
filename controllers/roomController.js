@@ -355,16 +355,34 @@ exports.searchRoomsByProperty = async (req, resp) => {
     // STEP 7 : Fetch Rooms and Count in Parallel
     // =====================================================
 
+    // const [rooms, totalRecords] = await Promise.all([
+    //   Room.find(filter)
+    //     .sort({ roomNumber: 1 })
+    //     .skip(skip)
+    //     .limit(pageSize)
+    //     // .populate("currentTenantId", "fullName phone")
+    //     .lean(),
+
+    //   Room.countDocuments(filter),
+    // ]);
+
+    //above is old code we need to get tenant more info then we add following code 
+
     const [rooms, totalRecords] = await Promise.all([
       Room.find(filter)
         .sort({ roomNumber: 1 })
         .skip(skip)
         .limit(pageSize)
-        // .populate("currentTenantId", "fullName phone")
+
+        // ✅ NEW: Fetch tenant details from Tenant model
+        .populate("currentTenantId", "fullName phone email")
+
         .lean(),
 
       Room.countDocuments(filter),
     ]);
+
+
 
     // =====================================================
     // STEP 8 : Prepare Response

@@ -254,6 +254,106 @@ exports.getTenantById = async (req, resp) => {
 };
 
 
+// exports.searchTenant = async (req, resp) => {
+//   logger.info(`Searching tenants for owner: ${req.params.ownerId}`);
+
+//   try {
+//     // =====================================================
+//     // STEP 1 : Logged-in Owner
+//     // =====================================================
+
+//     const ownerId = req.params.ownerId;
+
+//     // =====================================================
+//     // STEP 2 : Query Parameters
+//     // =====================================================
+
+//     const page = Math.max(parseInt(req.query.page) || 1, 1);
+//     const limit = Math.max(parseInt(req.query.limit) || 10, 1);
+//     const skip = (page - 1) * limit;
+
+//     const search = req.query.search?.trim().replace(/\s+/g, " ");
+
+//     // if (!search) {
+//     //   return errorResponse(resp, "Search text is required.", 400, null);
+//     // }
+
+//     // =====================================================
+//     // STEP 3 : Build Filter
+//     // =====================================================
+//     const filter = {
+//     ownerId,
+//     };
+//     if (search) {
+//       filter.$or = [
+//         {
+//           fullName: {
+//             $regex: search,
+//             $options: "i",
+//           },
+//         },
+//         {
+//           phone: {
+//             $regex: search,
+//           },
+//         },
+//       ];
+//     }
+
+//     // Optional status filter
+//     //we wright logic according enum we define "Active and Inactive" 1st char capital
+//     if (req.query.status) {
+//       filter.status =
+//         req.query.status.charAt(0).toUpperCase() +
+//         req.query.status.slice(1).toLowerCase();
+//     }
+
+//     // =====================================================
+//     // STEP 4 : Fetch Data + Count
+//     // =====================================================
+
+//     const [tenants, totalRecords] = await Promise.all([
+//       Tenant.find(filter)
+//         .select(
+//           "fullName phone email idProofType idProofNumber status createdAt updatedAt"
+//         )
+//         .sort({ fullName: 1 })
+//         .skip(skip)
+//         .limit(limit)
+//         .lean(),
+
+//       Tenant.countDocuments(filter),
+//     ]);
+
+//     // =====================================================
+//     // STEP 5 : Response
+//     // =====================================================
+
+//     return successResponse(
+//       resp,
+//       {
+//         tenants,
+//         pagination: {
+//           totalRecords,
+//           currentPage: page,
+//           totalPages: Math.ceil(totalRecords / limit),
+//           pageSize: limit,
+//           hasNextPage: page * limit < totalRecords,
+//           hasPreviousPage: page > 1,
+//         },
+//       },
+//       "Tenant search completed successfully.",
+//       200
+//     );
+//   } catch (error) {
+//     logger.error(`Search Tenant Error: ${error.message}`);
+
+//     return errorResponse(resp, "Internal server error.", 500, error);
+//   }
+// };
+
+
+//update serch logic we add statstic info in response (total tenant , active and inactive count)
 exports.searchTenant = async (req, resp) => {
   logger.info(`Searching tenants for owner: ${req.params.ownerId}`);
 
@@ -274,16 +374,14 @@ exports.searchTenant = async (req, resp) => {
 
     const search = req.query.search?.trim().replace(/\s+/g, " ");
 
-    // if (!search) {
-    //   return errorResponse(resp, "Search text is required.", 400, null);
-    // }
+    // =====================================================
+    // STEP 3 : Build Filter (EXISTING LOGIC UNCHANGED)
+    // =====================================================
 
-    // =====================================================
-    // STEP 3 : Build Filter
-    // =====================================================
     const filter = {
-    ownerId,
+      ownerId,
     };
+
     if (search) {
       filter.$or = [
         {
@@ -301,7 +399,7 @@ exports.searchTenant = async (req, resp) => {
     }
 
     // Optional status filter
-    //we wright logic according enum we define "Active and Inactive" 1st char capital
+    // First character capital: Active / Inactive
     if (req.query.status) {
       filter.status =
         req.query.status.charAt(0).toUpperCase() +
@@ -310,6 +408,7 @@ exports.searchTenant = async (req, resp) => {
 
     // =====================================================
     // STEP 4 : Fetch Data + Count
+    // EXISTING SEARCH LOGIC UNCHANGED
     // =====================================================
 
     const [tenants, totalRecords] = await Promise.all([
@@ -326,6 +425,26 @@ exports.searchTenant = async (req, resp) => {
     ]);
 
     // =====================================================
+    // STEP 4.1 : NEW LOGIC - OWNER TENANT STATISTICS
+    // These counts ignore search, status filter, and pagination.
+    // =====================================================
+
+    const [totalTenantCount, activeTenantCount, inactiveTenantCount] =
+      await Promise.all([
+        Tenant.countDocuments({ ownerId }),
+
+        Tenant.countDocuments({
+          ownerId,
+          status: "Active",
+        }),
+
+        Tenant.countDocuments({
+          ownerId,
+          status: "Inactive",
+        }),
+      ]);
+
+    // =====================================================
     // STEP 5 : Response
     // =====================================================
 
@@ -333,6 +452,15 @@ exports.searchTenant = async (req, resp) => {
       resp,
       {
         tenants,
+
+        // NEW: Dashboard statistics
+        stats: {
+          totalTenantCount,
+          activeTenantCount,
+          inactiveTenantCount,
+        },
+
+        // EXISTING PAGINATION LOGIC UNCHANGED
         pagination: {
           totalRecords,
           currentPage: page,

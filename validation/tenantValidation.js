@@ -52,7 +52,7 @@ const createTenantValidationSchema = Joi.object({
 
   // ID Proof Type
   idProofType: Joi.string()
-    .valid("Aadhaar", "PAN", "Passport", "Driving License", "Voter ID", "Other")
+    .valid("Aadhaar", "PAN", "Passport", "DrivingLicense", "VoterID", "Other")
     .required()
     .messages({
       "any.only":
@@ -76,7 +76,7 @@ const createTenantValidationSchema = Joi.object({
     }),
 
   // Status (Optional)
-  status: Joi.string().valid("Active", "Inactive").default("Active").messages({
+  status: Joi.string().valid("Active", "Inactive").default("Inactive").messages({
     "any.only": "Status must be either Active or Inactive.",
   }),
 });

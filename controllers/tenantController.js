@@ -1,5 +1,7 @@
 const Tenant = require("../models/tenantModel");
 const User = require("../models/userModel");
+const Room=require("../models/roomModel")
+const Property=require("../models/propertyModel")
 const mongoose = require("mongoose");
 const logger = require("../logs/logger");
 const { successResponse, errorResponse } = require("../utils/responseHandler");
@@ -205,14 +207,14 @@ exports.getTenantById = async (req, resp) => {
 
   try {
     // =====================================================
-    // STEP 1 : Get Owner & Tenant ID
+    // STEP 1 : Get Owner & Tenant ID (EXISTING)
     // =====================================================
 
     const ownerId = req.params.ownerId;
-    const { tenantId } = req.params;
+    const tenantId = req.params.tenantId;
 
     // =====================================================
-    // STEP 2 : Validate Tenant ID
+    // STEP 2 : Validate Tenant ID (EXISTING)
     // =====================================================
 
     if (!mongoose.Types.ObjectId.isValid(tenantId)) {
@@ -220,36 +222,117 @@ exports.getTenantById = async (req, resp) => {
     }
 
     // =====================================================
-    // STEP 3 : Find Tenant
+    // STEP 3 : Find Tenant (EXISTING)
     // =====================================================
 
-    const tenant = await Tenant.findOne({
+    const tenantInfo = await Tenant.findOne({
       _id: tenantId,
       ownerId,
     }).lean();
 
-    if (!tenant) {
+    if (!tenantInfo) {
       logger.warn(`Tenant not found : ${tenantId}`);
 
       return errorResponse(resp, "Tenant not found.", 404, null);
     }
 
     // =====================================================
-    // STEP 4 : Success Response
+    // STEP 4 : INACTIVE TENANT
+    // Return only tenant information
     // =====================================================
 
-    logger.info(`Tenant fetched successfully : ${tenantId}`);
+    if (tenantInfo.status !== "Active") {
+      logger.info(`Inactive tenant fetched successfully : ${tenantId}`);
+      return successResponse(
+        resp,
+        {
+          tenantInfo,
+          roomInfo: null,
+          propertyInfo: null,
+        },
+        "Tenant details fetched successfully.",
+        200
+      );
+    }
 
+    // =====================================================
+    // STEP 5 : ACTIVE TENANT - FIND ALLOCATED ROOM
+    // NEW LOGIC
+    // =====================================================
+
+    const room = await Room.findOne({
+      ownerId,
+      currentTenantId: tenantInfo._id,
+    }).lean();
+
+    // If no room is found, return tenant information
+    if (!room) {
+      logger.info(
+        `No allocated room found for active tenant : ${tenantId}`
+      );      
+      return successResponse(
+        resp,
+        {
+          tenantInfo,
+          roomInfo: null,
+          propertyInfo: null,
+        },
+        "Tenant details fetched successfully. No allocated room found.",
+        200
+      );
+    }
+
+    // =====================================================
+    // STEP 6 : FIND PROPERTY USING ROOM PROPERTY ID
+    // NEW LOGIC
+    // =====================================================
+
+    const property = await Property.findOne({
+      _id: room.propertyId,
+      ownerId,
+    }).lean();
+
+    // =====================================================
+    // STEP 7 : SUCCESS RESPONSE
+    // ACTIVE TENANT WITH ROOM & PROPERTY INFORMATION
+    // =====================================================
+
+   
+    const roomInfo = {
+      roomNumber: room.roomNumber,
+      roomType: room.roomType,
+      floor: room.floor,
+    };
+    const propertyInfo = {
+      propertyName: property.propertyName,
+      address: property.address,
+      city: property.city,
+      state: property.state,
+      pincode: property.pincode,
+    };
+
+     logger.info(
+       `Tenant, room and property fetched successfully : ${tenantId}`
+     );
     return successResponse(
       resp,
-      tenant,
-      "Tenant details fetched successfully.",
+      {
+        tenantInfo,
+        roomInfo,
+        propertyInfo,
+      },
+      "Tenant, room and property details fetched successfully.",
       200
     );
   } catch (error) {
     logger.error(`Get Tenant Error : ${error.message}`);
 
-    return errorResponse(resp, "Internal server error.", 500, error);
+    return errorResponse(
+      resp,
+      "Internal server error.",
+      500,
+      error
+    );
   }
 };
 
